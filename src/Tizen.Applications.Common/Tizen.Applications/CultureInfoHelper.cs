@@ -18,6 +18,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Reflection;
 using System.Xml;
 using Tizen;
 
@@ -27,68 +28,95 @@ namespace Tizen.Applications
     {
         private const string LogTag = "Tizen.Applications";
         private static bool _initialized = false;
-        private static readonly Dictionary<string, string> _cultureNames = new Dictionary<string, string>();
+        private static Dictionary<string, string> _cultureNames = new Dictionary<string, string>();
         private static readonly object _lock = new object();
-        private const string _pathCultureInfoXml = "/usr/share/dotnet.tizen/framework/i18n/CultureInfo.xml";
+        private const string _pathCultureInfoDll = "/usr/share/dotnet.tizen/framework/i18n/CultureInfoData.dll";
+
+        internal static class DllLoader
+        {
+            delegate Dictionary<string, string> API();
+            static API method;
+            static bool init = false;
+            static void Initialize()
+            {
+                Assembly u = Assembly.LoadFile(_pathCultureInfoDll);
+                Module[] modules = u.GetModules();
+                Type t = modules[0].GetType("CultureInfoData.ClassLib");
+                MethodInfo minfo = t.GetMethod("GetCultureNames");
+                method = (API)Delegate.CreateDelegate(typeof(API), minfo);
+                init = true;
+            }
+
+            public static Dictionary<string, string> GetCultureNames() {
+                if (init == false)
+                    Initialize();
+                return method();
+            }
+        };
 
         public static void Initialize()
         {
-            if (File.Exists(_pathCultureInfoXml))
+            if (File.Exists(_pathCultureInfoDll))
             {
                 try
                 {
-                    ParseCultureInfoXml();
+                    _cultureNames = DllLoader.GetCultureNames();
                 }
                 catch
                 {
-                    Log.Warn(LogTag, "Failed to parse CultureInfo.xml");
+                    Log.Warn(LogTag, "Failed to load CultureInfoData.dll");
                 }
             }
 
             _initialized = true;
         }
 
-        private static void ParseCultureInfoXml()
-        {
-            XmlDocument doc = new XmlDocument();
-            doc.Load(_pathCultureInfoXml);
-            XmlElement root = doc.DocumentElement;
-            foreach (XmlElement node in root.ChildNodes)
-            {
-                if (node.Name != "name" && node.FirstChild == null)
-                {
-                    continue;
-                }
+        // private static void ParseCultureInfoXml()
+        // {
+        //     XmlDocument doc = new XmlDocument();
+        //     doc.Load(_pathCultureInfoXml);
+        //     XmlElement root = doc.DocumentElement;
+        //     foreach (XmlElement node in root.ChildNodes)
+        //     {
+        //         if (node.Name != "name" && node.FirstChild == null)
+        //         {
+        //             continue;
+        //         }
 
-                string lang = node.GetAttribute("xml:lang");
-                string cultureName = node.FirstChild.Value;
-                if (!string.IsNullOrEmpty(lang) && !string.IsNullOrEmpty(cultureName))
-                {
-                    try
-                    {
-                        _cultureNames.Add(lang, cultureName);
-                    }
-                    catch (ArgumentException e)
-                    {
-                        Log.Error(LogTag, "ArgumentException: " + e.Message);
-                    }
-                }
-            }
-        }
+        //         string lang = node.GetAttribute("xml:lang");
+        //         string cultureName = node.FirstChild.Value;
+        //         if (!string.IsNullOrEmpty(lang) && !string.IsNullOrEmpty(cultureName))
+        //         {
+        //             try
+        //             {
+        //                 _cultureNames.Add(lang, cultureName);
+        //             }
+        //             catch (ArgumentException e)
+        //             {
+        //                 Log.Error(LogTag, "ArgumentException: " + e.Message);
+        //             }
+        //         }
+        //     }
+        // }
 
         public static string GetCultureName(string locale)
         {
+            Log.Error(LogTag, "[TEST_C] Start");
             lock (_lock)
             {
                 if (!_initialized)
                 {
+                    Log.Error(LogTag, "[TEST_C] Initialize Start");
                     Initialize();
+                    Log.Error(LogTag, "[TEST_C] Initialize Finish");
                 }
-
+                Log.Error(LogTag, "[TEST_C] dic size: " + _cultureNames.Count);
                 if (_cultureNames.TryGetValue(locale.ToLowerInvariant(), out string cultureName))
                 {
+                Log.Error(LogTag, "[TEST_C] TryGetValue Finish");
                     return cultureName;
                 }
+                Log.Error(LogTag, "[TEST_C] TryGetValue Finish");
             }
 
             return string.Empty;
