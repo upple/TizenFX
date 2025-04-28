@@ -308,6 +308,10 @@ namespace Tizen.NUI
             gadget.ClassName = className;
             gadget.NUIGadgetResourceManager = new NUIGadgetResourceManager(info);
             gadget.LifecycleChanged += OnNUIGadgetLifecycleChanged;
+
+            // Subscribe to the event for sending data from NUIGadget to Manager
+            gadget.ManagerMessageRequested += OnGadgetMessageRequested;
+
             if (!gadget.Create())
             {
                 throw new InvalidOperationException("The View MUST be created");
@@ -315,6 +319,17 @@ namespace Tizen.NUI
 
             _gadgets.Add(gadget);
             return gadget;
+        }
+
+        /// <summary>
+        /// Handler called when NUIGadget sends data to Manager.
+        /// </summary>
+        private static void OnGadgetMessageRequested(object sender, Bundle data)
+        {
+            var gadget = sender as NUIGadget;
+            Log.Info($"NUIGadgetManager: Gadget({gadget?.ClassName}) → Manager, Data={data}");
+            // Example: Broadcast to all gadgets
+            // BroadcastMessage(data);
         }
 
         /// <summary>
@@ -482,6 +497,32 @@ namespace Tizen.NUI
             }
 
             gadget.HandleAppControlReceivedEvent(new AppControlReceivedEventArgs(new ReceivedAppControl(appControl.SafeAppControlHandle)));
+        }
+
+        /// <summary>
+        /// Sends data to a specific NUIGadget.
+        /// </summary>
+        /// <param name="gadget">Target NUIGadget instance.</param>
+        /// <param name="data">Optional data bundle.</param>
+        /// <since_tizen> 12 </since_tizen>
+        public static void SendMessage(NUIGadget gadget, Bundle data = null)
+        {
+            if (gadget == null) throw new ArgumentNullException(nameof(gadget));
+            if (!_gadgets.Contains(gadget)) throw new ArgumentException("Invalid gadget instance");
+            gadget.OnManagerMessage(data);
+        }
+
+        /// <summary>
+        /// Sends data to all loaded NUIGadgets.
+        /// </summary>
+        /// <param name="data">Optional data bundle.</param>
+        /// <since_tizen> 12 </since_tizen>
+        public static void BroadcastMessage(Bundle data = null)
+        {
+            foreach (var gadget in _gadgets)
+            {
+                gadget.OnManagerMessage(data);
+            }
         }
 
         internal static bool HandleAppControl(AppControlReceivedEventArgs args)

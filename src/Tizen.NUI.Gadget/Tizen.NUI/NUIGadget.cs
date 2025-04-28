@@ -51,6 +51,12 @@ namespace Tizen.NUI
         internal event EventHandler<NUIGadgetLifecycleChangedEventArgs> LifecycleChanged;
 
         /// <summary>
+        /// Event used when NUIGadget wants to send data to NUIGadgetManager.
+        /// </summary>
+        /// <since_tizen> 12 </since_tizen>
+        public event EventHandler<Bundle> ManagerMessageRequested;
+
+        /// <summary>
         /// Gets the class representing information of the current gadget.
         /// </summary>
         /// <remarks>
@@ -189,6 +195,26 @@ namespace Tizen.NUI
             args.State = State;
             args.Gadget = this;
             LifecycleChanged?.Invoke(null, args);
+        }
+
+        /// <summary>
+        /// Sends data to the NUIGadgetManager.
+        /// </summary>
+        /// <param name="data">Data to send (Bundle).</param>
+        /// <since_tizen> 12 </since_tizen>
+        protected void SendMessageToManager(Bundle data = null)
+        {
+            ManagerMessageRequested?.Invoke(this, data);
+        }
+
+        /// <summary>
+        /// Called when data is received from NUIGadgetManager.
+        /// </summary>
+        /// <param name="data">Received data (Bundle).</param>
+        /// <since_tizen> 12 </since_tizen>
+        internal virtual void OnManagerMessage(Bundle data)
+        {
+            // Override in derived class if needed
         }
 
         /// <summary>
