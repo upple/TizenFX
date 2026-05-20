@@ -29,6 +29,7 @@ namespace Tizen.Applications.CoreBackend
         private Interop.TeamMember.UIMemberLifecycleCallbacks _callbacks;
         private bool _disposedValue = false;
         private int DefaultWindowId = 0;
+        private static bool _defaultWindowClaimed = false;
         internal Window defaultWindow;
         internal override IntPtr MemberHandle => _memberHandle;
         internal override IntPtr LoadObjId => _loadObjId;
@@ -164,12 +165,22 @@ namespace Tizen.Applications.CoreBackend
                 var handler = Handlers[EventType.Created] as Action;
                 if (handler != null)
                 {
-                    // This function will set default window
                     try
                     {
-                        var window = new Window();
+                        Window window;
+                        if (!_defaultWindowClaimed)
+                        {
+                            window = UIContext.Instance.GetDefaultWindow();
+                            _defaultWindowClaimed = true;
+                            Log.Info(LogTag, "Using PreCreated DefaultWindow for first UI app");
+                        }
+                        else
+                        {
+                            window = new Window();
+                            window.Hide();
+                            Log.Info(LogTag, "Creating new Window for subsequent UI app");
+                        }
                         SetDefaultWindow(window);
-                        window.Hide();
 
                         try {
                           handler?.Invoke();
